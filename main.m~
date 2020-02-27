@@ -30,8 +30,4 @@ D= 0;
 MIMO=ss(A,B,C,D);
 step(MIMO);
 
-MIMOdisc = c2d(MIMO,0.020,'zoh');
-
-figure(2)
-step(MIMOdisc,1);
 
