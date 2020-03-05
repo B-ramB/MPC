@@ -36,7 +36,7 @@ t= 5;
 
 x0 = [0 0 0 0 0 0 0 0]';
 u = [500*ones(1,(t*10+1))
-     100*ones(1,(t*10+1))];
+     500*ones(1,(t*10+1))];
 
 
 MIMO=ss(A,B,C,D);
@@ -52,7 +52,7 @@ legend('s1','s2');
 for i = 1:length(s)
 
     b1 = [cos(s(i,1))*l1; sin(s(i,1))*l1];
-    b2 = b1 + [cos(s(i,2))*l2; sin(s(i,2))*l2];
+    b2 = b1 + [cos(s(i,2)+s(i,1))*l2; sin(s(i,2)+s(i,1))*l2];
     
     beam1 = [zeros(2,1) b1];
     beam2 = [b1 b2];        
@@ -69,7 +69,7 @@ end
 %%
 MIMOdisc = c2d(MIMO,0.1,'zoh');
 
-N = 100;
+N = 10;
 
 A = MIMOdisc.A;
 B = MIMOdisc.B;
@@ -113,8 +113,7 @@ cvx_begin
 variable u(2*N,1)
 
 minimize(u'*H*u + h*u)
-    
-    
+       
 cvx_end
 
 uopt = zeros(2,N);
