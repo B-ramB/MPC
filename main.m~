@@ -76,38 +76,51 @@ B = MIMOdisc.B;
 C = MIMOdisc.C;
 D = MIMOdisc.D;
 
-Q = eye(8);
-R = eye(2);
+Q = 1;
+R = 1;
 
-
+x0 = [0 0 0 0 0 0 0 0]';
 
 T = zeros(8*N,8);
 T(1:8,1:8) = eye(8);
 S = zeros(8*N,2*N);
-for i = 2:N+1
+for i = 2:N
  T((8*i)-7:8*i,:) = A^(i-1);
  for k = 1:i-1
- S((8*i)-7:8*i,k:k+1) = A^(i-k-1)*B;
+ S((8*i)-7:8*i,2*k-1:2*k) = A^(i-k-1)*B;
  end
 end
 
 
-QH = Q*eye((N+1)*2);
+QH = Q*eye((N)*8);
 
+xdest = [0 0 1 0 0 0 1 0]';
+udest = [0 0]';
 
-H = 0.5*(S'*QH*S + R*eye(N));
-h = x0'*T'*QH*S;
+xref = zeros(8*N,1);
+uref = zeros(2*N,1);
+for l = 1:N
+    xref(l*8-7:l*8,1) = xdest;
+    uref(l*2-1:l*2,1) = udest;
+end
+
+H = 0.5*(S'*QH*S + 2*R*eye(N*2));
+h = x0'*T'*QH*S - xref'*QH*S - uref'*R*eye(N*2);
 
 
 cvx_begin
 
-variable u(N,1)
+variable u(2*N,1)
 
 minimize(u'*H*u + h*u)
-subject to
-    [0 0 1 0 0 0 0 0]*(T*x0 + S*u) <= pi/2;
+    
     
 cvx_end
 
+uopt = zeros(2,N);
 
+for j = 1:N
+ uopt(:,j) = u(2*j-1:2*j);
+end
 
+s = lsim(MIMOdisc,uopt,0:1:N-1,x0);

@@ -69,7 +69,7 @@ end
 %%
 MIMOdisc = c2d(MIMO,0.1,'zoh');
 
-N = 10;
+N = 100;
 
 A = MIMOdisc.A;
 B = MIMOdisc.B;
@@ -77,14 +77,14 @@ C = MIMOdisc.C;
 D = MIMOdisc.D;
 
 Q = 1;
-R = 1;
+R = 0;
 
-
+x0 = [0 0 0 0 0 0 0 0]';
 
 T = zeros(8*N,8);
 T(1:8,1:8) = eye(8);
 S = zeros(8*N,2*N);
-for i = 2:N+1
+for i = 2:N
  T((8*i)-7:8*i,:) = A^(i-1);
  for k = 1:i-1
  S((8*i)-7:8*i,2*k-1:2*k) = A^(i-k-1)*B;
@@ -92,22 +92,52 @@ for i = 2:N+1
 end
 
 
-QH = Q*eye((N+1)*8);
+QH = Q*eye((N)*8);
 
+xdest = [0 0 pi 0 0 0 pi 0]';
+udest = [0 0]';
 
-H = 0.5*(S'*QH*S + R*eye(N*2));
-h = x0'*T'*QH*S;
+xref = zeros(8*N,1);
+uref = zeros(2*N,1);
+for l = 1:N
+    xref(l*8-7:l*8,1) = xdest;
+    uref(l*2-1:l*2,1) = udest;
+end
+
+H = 0.5*(S'*QH*S + 2*R*eye(N*2));
+h = x0'*T'*QH*S - xref'*QH*S - uref'*R*eye(N*2);
 
 
 cvx_begin
 
-variable u(N*2,1)
+variable u(2*N,1)
 
 minimize(u'*H*u + h*u)
-subject to
-    ones(N,1)*[0 0 1 0 0 0 0 0]*(T*x0 + S*u) <= ones(N,1)*pi/2;
+    
     
 cvx_end
 
+uopt = zeros(2,N);
 
+for j = 1:N
+ uopt(:,j) = u(2*j-1:2*j);
+end
 
+s = lsim(MIMOdisc,uopt,0:0.1:0.1*(N-1),x0);
+
+for i = 1:length(s)
+
+    b1 = [cos(s(i,1))*l1; sin(s(i,1))*l1];
+    b2 = b1 + [cos(s(i,2)+s(i,1))*l2; sin(s(i,2)+s(i,1))*l2];
+    
+    beam1 = [zeros(2,1) b1];
+    beam2 = [b1 b2];        
+    
+    figure(2)
+    plot(0,0,'ko',b1(1),b1(2),'bo',beam1(1,:),beam1(2,:),'b',b2(1),b2(2),'ro',beam2(1,:),beam2(2,:),'r')
+    axis([-5 5 -5 5])
+    
+    pause(0.1)
+    
+    
+end
