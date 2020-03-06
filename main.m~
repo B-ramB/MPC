@@ -125,24 +125,24 @@ minimize(u'*H*u + h*u)
        
 cvx_end
 
-%optimale u waardes in een correcte vector zetten
-uopt = zeros(2,N); 
+%optimale u waarde
+uopt = zeros(2,N);
 
 for j = 1:N
  uopt(:,j) = u(2*j-1:2*j);
 end
 
-s = lsim(MIMOdisc,uopt,0:0.1:0.1*(N-1),x0); %simuleren van van y waardes
+s = lsim(MIMOdisc,uopt,0:0.1:0.1*(N-1),x0);
 
-for i = 1:length(s) %code voor de beam simulatie plot
+for i = 1:length(s)
 
-    b1 = [cos(s(i,1))*l1; sin(s(i,1))*l1]; %locatie van het uiteinde van beam 1
-    b2 = b1 + [cos(s(i,2)+s(i,1))*l2; sin(s(i,2)+s(i,1))*l2]; %locatie van het uiteinde van beam 2
+    b1 = [cos(s(i,1))*l1; sin(s(i,1))*l1];
+    b2 = b1 + [cos(s(i,2)+s(i,1))*l2; sin(s(i,2)+s(i,1))*l2];
     
-    beam1 = [zeros(2,1) b1]; %vector gelijk aan beam 1
-    beam2 = [b1 b2];         %vector gelijk aan beam 2
+    beam1 = [zeros(2,1) b1];
+    beam2 = [b1 b2];        
     
-    figure(2) %plot voor de beams simulatie
+    figure(2)
     plot(0,0,'ko',b1(1),b1(2),'bo',beam1(1,:),beam1(2,:),'b',b2(1),b2(2),'ro',beam2(1,:),beam2(2,:),'r')
     axis([-5 5 -5 5])
     
