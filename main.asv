@@ -70,20 +70,20 @@ KMIMO=ss(A-B*K,B,C,D);          % MIMO plant met state feedback controller
 KMIMO = KMIMO /dcgain(KMIMO);   % Controlled MIMO plant gedeeld door zijn dc gain. 
 s = lsim(KMIMO,r,t,x0);         % simulatie op de step response
 
- PlotBeams(s,1,'State Feedback',Parameters,xdest) % (s, l1, l2, figure number, Controller)
+ PlotBeams(s,1,'State Feedback',Parameters) % (s, l1, l2, figure number, Controller)
 
 %% MPC
 MIMOdisc = c2d(MIMO,dt,'zoh'); %discretizeren van de plant
 
-N = 20; %horizon input
+N = 100; %horizon input
 
 A = MIMOdisc.A;
 B = MIMOdisc.B;
 C = MIMOdisc.C;
 D = MIMOdisc.D;
 
-Q = diag([1 1 1 1 1 1 1 1]); %Waardes van de diagonaal van de Q (allemaal dezelfde)
-R = 0; %waarde van R
+Q = diag([0 0 100 0 0 0 100 0]); %Waardes van de diagonaal van de Q (allemaal dezelfde)
+R = 1; %waarde van R
 
 x0 = [0 0 0 0 0 0 0 0]';
 
@@ -100,77 +100,66 @@ end
 
 QH = zeros((N)*8); %Q zo opzetten dat je het kan vermenigvuldigen met de vector
 
+% uiteindelijke waardes van x en u in vectoren zetten.
+xref = zeros(8*N,1);
+uref = zeros(2*N,1);
+for j = 1:N
+    xref(j*8-7:j*8,1) = xdest;
+    uref(j*2-1:j*2,1) = udest;
+    QH(j*8-7:j*8,j*8-7:j*8) = Q;
+end
+
+
+% waardes van de cost function zo opzetten dat je u'*H*u + h*u kan zeggen
+H = 0.5*(S'*QH*S + 2*R*eye(N*2));
+h = x0'*T'*QH*S - xref'*QH*S - uref'*R*eye(N*2);
+
 % Constraints
 F = [eye(8);
     -eye(8);
     1 0 1 0 1 0 1 0;
     -1 0 -1 0 -1 0 -1 0];
-e = [pi;     % x1        upper
-    pi;        % xdot1     upper
-    pi;       % s1        upper
-    pi;       % sdot1     upper
-    pi;      % x2        upper
-    pi;        % xdot2     upper
-    pi;       % s2        upper
-    pi;       % sdot2     upper
-    pi;      % x1        lower
-    pi;        % xdot1     lower
-    pi;       % s1        lower
-    pi;       % sdot1     lower
-    pi;      % x2        lower
-    pi;        % xdot2     lower
-    pi;       % s2        lower
-    pi;       % sdot2     lower
-    2*pi;       % x1 + s1 + x2 + s2 < 
-    2*pi];      % -x1 - s1 - x2 - s2 < 
+e = [pi/10;     % x1        upper
+    inf;        % xdot1     upper
+    pi/2;       % s1        upper
+    2*pi;       % sdot1     upper
+    pi/10;      % x2        upper
+    inf;        % xdot2     upper
+    pi/2;       % s2        upper
+    2*pi;       % sdot2     upper
+    pi/10;      % x1        lower
+    inf;        % xdot1     lower
+    pi/2;       % s1        lower
+    2*pi;       % sdot1     lower
+    pi/10;      % x2        lower
+    inf;        % xdot2     lower
+    pi/2;       % s2        lower
+    2*pi;       % sdot2     lower
+    pi;       % x1 + s1 + x2 + s2 < 
+    pi];      % -x1 - s1 - x2 - s2 < 
+    
 
-% uiteindelijke waardes van x en u in vectoren zetten.
-xref = zeros(8*N,1);
-uref = zeros(2*N,1);
-FLarge = zeros(size(F,1)*N,8*N);
-eLarge = zeros(length(e)*N,1);
-for j = 1:N
-    xref(j*8-7:j*8,1) = xdest;
-    uref(j*2-1:j*2,1) = udest;
-    QH(j*8-7:j*8,j*8-7:j*8) = Q;
-    FLarge(j*size(F,1)-(size(F,1)-1):j*size(F,1),j*size(F,2)-(size(F,2)-1):j*size(F,2)) = F;
-    eLarge(j*length(e)-(length(e)-1):j*length(e),1)= e; 
-end
-
-uopt = zeros(2,N); 
-
-x = zeros(8,length(t)+1);
-x(:,1) = x0;
-
+for J = 1:N
+    
+    
 % optimalisatie beginnen
-for n = 1:length(t)
-
-x0 = x(:,n);    
-    
-    
-H = 0.5*(S'*QH*S + 2*R*eye(N*2));
-h = x0'*T'*QH*S - xref'*QH*S - uref'*R*eye(N*2);    
-    
-cvx_begin quiet
+cvx_begin
 
 variable u(2*N,1)
 
 minimize(u'*H*u + h*u)
-subject to
-FLarge*(T*x0+S*u) <= eLarge;
-
+       
 cvx_end
 
-x(:,n+1) = A*x(:,n) + B*u(1:2);
-
-uopt(:,n) = u(1:2);
- 
+% optimale u waardes in een correcte vector zetten
+uopt = zeros(2,N); 
+for j = 1:N
+ uopt(:,j) = u(2*j-1:2*j);
 end
 
-s = lsim(MIMOdisc,uopt,t,x(:,1));
+s = lsim(MIMOdisc,uopt,0:dt:dt*(N-1),x0); %simuleren van y met optimale inputs
 
-
-PlotBeams(s,2,'MPC',Parameters,xdest)
+PlotBeams(s,2,'MPC',Parameters)
 
 
 
@@ -180,7 +169,7 @@ PlotBeams(s,2,'MPC',Parameters,xdest)
 
 %% funtions
 
-function [] = PlotBeams(s,FigureNumber,Controller,Parameters,xdest)
+function [] = PlotBeams(s,FigureNumber,Controller,Parameters)
 % Plots the beams using the computed output angles. 
     % FigureNumber  : Which figure should it be plotted in
     % title         : What should be the title of the figure
@@ -207,12 +196,12 @@ function [] = PlotBeams(s,FigureNumber,Controller,Parameters,xdest)
             title 'Two arms' 
         axis square
         subplot(1,2,2)
-        p1= plot(Parameters.t(1:i),s(1:i,1),'b',Parameters.t(1:i),s(1:i,2),'r');
+            plot(Parameters.t(1:i),s(1:i,1),'b',Parameters.t(1:i),s(1:i,2),'r')
             axis([0 Parameters.T 0 2])
+            legend('s1','s2');
             title '$s_1$ \& $s_2$'
-            yline(xdest(3),'b--')
-            yline(xdest(7),'r--')
-            legend(p1,{'s1','s2'});    
+        
+            
         pause(Parameters.dt) 
     end
 
