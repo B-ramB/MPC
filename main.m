@@ -70,7 +70,7 @@ KMIMO=ss(A-B*K,B,C,D);          % MIMO plant met state feedback controller
 KMIMO = KMIMO /dcgain(KMIMO);   % Controlled MIMO plant gedeeld door zijn dc gain. 
 s = lsim(KMIMO,r,t,x0);         % simulatie op de step response
 
- PlotBeams(s,1,'State Feedback',Parameters) % (s, l1, l2, figure number, Controller)
+ %PlotBeams(s,1,'State Feedback',Parameters) % (s, l1, l2, figure number, Controller)
 
 %% MPC
 MIMOdisc = c2d(MIMO,dt,'zoh'); %discretizeren van de plant
@@ -98,18 +98,43 @@ for i = 2:N
  end
 end
 
-
 QH = zeros((N)*8); %Q zo opzetten dat je het kan vermenigvuldigen met de vector
 
-
+% Constraints
+F = [eye(8);
+    -eye(8);
+    1 0 1 0 1 0 1 0;
+    -1 0 -1 0 -1 0 -1 0];
+e = [pi;     % x1        upper
+    pi;        % xdot1     upper
+    pi;       % s1        upper
+    pi;       % sdot1     upper
+    pi;      % x2        upper
+    pi;        % xdot2     upper
+    pi;       % s2        upper
+    pi;       % sdot2     upper
+    pi;      % x1        lower
+    pi;        % xdot1     lower
+    pi;       % s1        lower
+    pi;       % sdot1     lower
+    pi;      % x2        lower
+    pi;        % xdot2     lower
+    pi;       % s2        lower
+    pi;       % sdot2     lower
+    2*pi;       % x1 + s1 + x2 + s2 < 
+    2*pi];      % -x1 - s1 - x2 - s2 < 
 
 % uiteindelijke waardes van x en u in vectoren zetten.
 xref = zeros(8*N,1);
 uref = zeros(2*N,1);
+FLarge = zeros(size(F,1)*N,8*N);
+eLarge = zeros(length(e)*N,1);
 for j = 1:N
     xref(j*8-7:j*8,1) = xdest;
     uref(j*2-1:j*2,1) = udest;
     QH(j*8-7:j*8,j*8-7:j*8) = Q;
+    FLarge(j*size(F,1)-(size(F,1)-1):j*size(F,1),j*size(F,2)-(size(F,2)-1):j*size(F,2)) = F;
+    eLarge(j*length(e)-(length(e)-1):j*length(e),1)= e; 
 end
 
 
@@ -123,7 +148,10 @@ cvx_begin
 variable u(2*N,1)
 
 minimize(u'*H*u + h*u)
-       
+
+subject to
+FLarge*(T*x0+S*u) <= eLarge;
+
 cvx_end
 
 % optimale u waardes in een correcte vector zetten
