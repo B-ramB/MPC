@@ -82,7 +82,7 @@ B = MIMOdisc.B;
 C = MIMOdisc.C;
 D = MIMOdisc.D;
 
-Q = diag([0 0 100 0 0 0 100 0]); %Waardes van de diagonaal van de Q (allemaal dezelfde)
+Q = diag([0 0 1 0 0 0 1 0]); %Waardes van de diagonaal van de Q (allemaal dezelfde)
 R = 1; %waarde van R
 
 x0 = [0 0 0 0 0 0 0 0]';
@@ -166,13 +166,13 @@ function [] = PlotBeams(s,FigureNumber,Controller,Parameters)
             plot(0,0,'ko',b1(1),b1(2),'bo',beam1(1,:),beam1(2,:),'b',b2(1),b2(2),'ro',beam2(1,:),beam2(2,:),'r')
             axis([-5 5 -5 5])
             title 'Two arms' 
-        axis square
+        axis squ
         subplot(1,2,2)
             plot(Parameters.t(1:i),s(1:i,1),'b',Parameters.t(1:i),s(1:i,2),'r')
             axis([0 Parameters.T 0 2])
             legend('s1','s2');
             title '$s_1$ \& $s_2$'
-        
+        axis square
             
         pause(Parameters.dt) 
     end
