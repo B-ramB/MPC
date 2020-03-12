@@ -75,15 +75,15 @@ s = lsim(KMIMO,r,t,x0);         % simulatie op de step response
 %% MPC
 MIMOdisc = c2d(MIMO,dt,'zoh'); %discretizeren van de plant
 
-N = 10; %horizon input
+N = 100; %horizon input
 
 A = MIMOdisc.A;
 B = MIMOdisc.B;
 C = MIMOdisc.C;
 D = MIMOdisc.D;
 
-Q = 1; %Waardes van de diagonaal van de Q (allemaal dezelfde)
-R = 0; %waarde van R
+Q = diag([0 0 100 0 0 0 100 0]); %Waardes van de diagonaal van de Q (allemaal dezelfde)
+R = 1; %waarde van R
 
 x0 = [0 0 0 0 0 0 0 0]';
 
@@ -99,7 +99,8 @@ for i = 2:N
 end
 
 
-QH = Q*eye((N)*8); %Q zo opzetten dat je het kan vermenigvuldigen met de vector
+QH = zeros((N)*8); %Q zo opzetten dat je het kan vermenigvuldigen met de vector
+
 
 
 % uiteindelijke waardes van x en u in vectoren zetten.
@@ -108,6 +109,7 @@ uref = zeros(2*N,1);
 for j = 1:N
     xref(j*8-7:j*8,1) = xdest;
     uref(j*2-1:j*2,1) = udest;
+    QH(j*8-7:j*8,j*8-7:j*8) = Q;
 end
 
 
@@ -166,13 +168,14 @@ function [] = PlotBeams(s,FigureNumber,Controller,Parameters)
         subplot(1,2,1)
             plot(0,0,'ko',b1(1),b1(2),'bo',beam1(1,:),beam1(2,:),'b',b2(1),b2(2),'ro',beam2(1,:),beam2(2,:),'r')
             axis([-5 5 -5 5])
-            title 'Two arms'  
+            title 'Two arms' 
+        axis square
         subplot(1,2,2)
             plot(Parameters.t(1:i),s(1:i,1),'b',Parameters.t(1:i),s(1:i,2),'r')
             axis([0 Parameters.T 0 2])
             legend('s1','s2');
             title '$s_1$ \& $s_2$'
-            
+        
             
         pause(Parameters.dt) 
     end
