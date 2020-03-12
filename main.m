@@ -74,7 +74,7 @@ end
 %%
 MIMOdisc = c2d(MIMO,0.1,'zoh'); %discretizeren van de plant
 
-N = 10; %horizon input
+N = 100; %horizon input
 
 A = MIMOdisc.A;
 B = MIMOdisc.B;
