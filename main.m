@@ -68,9 +68,9 @@ r = [xdest(3)*ones(1,(length(t)))
 MIMO=ss(A,B,C,D);               % MIMO plant
 KMIMO=ss(A-B*K,B,C,D);          % MIMO plant met state feedback controller
 KMIMO = KMIMO /dcgain(KMIMO);   % Controlled MIMO plant gedeeld door zijn dc gain. 
-s = lsim(KMIMO,r,t,x0);         % simulatie op de step response
+[s,~,x] = lsim(KMIMO,r,t,x0);         % simulatie op de step response
 
- PlotBeams(s,1,'State Feedback',Parameters,xdest) % (s, l1, l2, figure number, Controller)
+PlotBeams(s,x,1,'State Feedback',Parameters,xdest) % (s, l1, l2, figure number, Controller)
 
 %% MPC
 MIMOdisc = c2d(MIMO,dt,'zoh'); %discretizeren van de plant
@@ -167,10 +167,10 @@ uopt(:,n) = u(1:2);
  
 end
 
-s = lsim(MIMOdisc,uopt,t,x(:,1));
+[s,~,x] = lsim(MIMOdisc,uopt,t,x(:,1));
 
 
-PlotBeams(s,2,'MPC',Parameters,xdest)
+PlotBeams(s,x,2,'MPC',Parameters,xdest)
 
 
 
@@ -180,7 +180,7 @@ PlotBeams(s,2,'MPC',Parameters,xdest)
 
 %% funtions
 
-function [] = PlotBeams(s,FigureNumber,Controller,Parameters,xdest)
+function [] = PlotBeams(s,x,FigureNumber,Controller,Parameters,xdest)
 % Plots the beams using the computed output angles. 
     % FigureNumber  : Which figure should it be plotted in
     % title         : What should be the title of the figure
@@ -191,28 +191,61 @@ function [] = PlotBeams(s,FigureNumber,Controller,Parameters,xdest)
             s(end,1)*ones(length(Parameters.t)-length(s),1), s(end,2)*ones(length(Parameters.t)-length(s),1)];
     end
     
-    for i = 1:length(Parameters.t)  % code voor de beam simulatie plot
+    for i = 1:length(Parameters.t)      % code voor de beam simulatie plot
+        xm(i,1) = x(i,1)*10^(-3);       % from mm to m
+        xm(i,5) = x(i,5)*10^(-3);       % from mm to m
+        
+        alpha1 = asin(xm(i,1)/(Parameters.l1/2));
+        alpha2 = asin(xm(i,5)/(Parameters.l2/2));
+        
+        b11 = [cos(s(i,1))*Parameters.l1/2; sin(s(i,1))*Parameters.l1/2];                    % locatie van het uiteinde van beam 11
+        b12 = b11 + [Parameters.l1/2*cos(s(i,1)+alpha1); Parameters.l1/2*sin(s(i,1)+alpha1)];
 
+        b21 = b12 + [Parameters.l1/2*cos(s(i,1)+alpha1+s(i,2)); Parameters.l1/2*sin(s(i,1)+alpha1+s(i,2))];
+        b22 = b21 + [Parameters.l1/2*cos(s(i,1)+alpha1+s(i,2)+alpha2); Parameters.l1/2*sin(s(i,1)+alpha1+s(i,2)+alpha2)];
+        
+        beam11 = [zeros(2,1) b11];
+        beam12 = [b11 b12];
+        beam21 = [b12 b21];
+        beam22 = [b21 b22];
+        
         b1 = [cos(s(i,1))*Parameters.l1; sin(s(i,1))*Parameters.l1];                    % locatie van het uiteinde van beam 1
         b2 = b1 + [cos(s(i,2)+s(i,1))*Parameters.l2; sin(s(i,2)+s(i,1))*Parameters.l2]; % locatie van het uiteinde van beam 2
 
         beam1 = [zeros(2,1) b1];    % vector gelijk aan beam 1
         beam2 = [b1 b2];            % vector gelijk aan beam 2
+        
+        
 
         figure(FigureNumber)        % plot voor de beams simulatie
         sgtitle(['Controller: ',Controller])
         subplot(1,2,1)
-            plot(0,0,'ko',b1(1),b1(2),'bo',beam1(1,:),beam1(2,:),'b',b2(1),b2(2),'ro',beam2(1,:),beam2(2,:),'r')
+            plot(0,0,'ko')
+            hold on
+                plot(b1(1),b1(2),'bo',b2(1),b2(2),'ro') % rondjess
+                plot(beam1(1,:),beam1(2,:),'b')     % beam1
+                plot(beam2(1,:),beam2(2,:),'r')     % beam2
+                
+                plot(0,0,'ko',b12(1),b12(2),'bo')   % rondjess
+                plot(beam11(1,:),beam11(2,:),'b')   % b11
+                plot(beam12(1,:),beam12(2,:),'b')   % b12
+                plot(beam21(1,:),beam21(2,:),'r')   % b21
+                plot(beam22(1,:),beam22(2,:),'r')   % b22
+            hold off
             axis([-5 5 -5 5])
             title 'Two arms' 
-        axis square
+            axis square
         subplot(1,2,2)
-        p1= plot(Parameters.t(1:i),s(1:i,1),'b',Parameters.t(1:i),s(1:i,2),'r');
-            axis([0 Parameters.T 0 2])
+            plot(Parameters.t(1:i),s(1:i,1),'b',Parameters.t(1:i),s(1:i,2),'r')
+            hold on
+                plot(Parameters.t(1:i),x(1:i,1),'color',[0, 0.4470, 0.7410])
+                plot(Parameters.t(1:i),x(1:i,5),'color',[0.8500, 0.3250, 0.0980]);
+            hold off
+            yline(xdest(3),'b--');
+            yline(xdest(7),'r--');
+            axis([0 Parameters.T -1 2])
             title '$s_1$ \& $s_2$'
-            yline(xdest(3),'b--')
-            yline(xdest(7),'r--')
-            legend(p1,{'s1','s2'});    
+            legend('s_1 [rad]','s_2 [rad]','x_1 [mm]','x_2 [mm]');    
         pause(Parameters.dt) 
     end
 
