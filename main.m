@@ -26,6 +26,7 @@ l2 = 2;         % m
     Parameters.c2 = c2; % Ndm
     Parameters.l1 = l1; % m
     Parameters.l2 = l2; % m
+    a = 2;
 
 % Continuous time system
 A= [ 0 1 0 0 0 0 0 0
