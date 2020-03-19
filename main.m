@@ -217,17 +217,16 @@ function [] = PlotBeams(s,x,FigureNumber,Controller,Parameters,xdest)
         beam2 = [b1 b2];            % vector gelijk aan beam 2
         
         
-
         figure(FigureNumber)        % plot voor de beams simulatie
         sgtitle(['Controller: ',Controller])
         subplot(1,2,1)
             plot(0,0,'ko')
             hold on
-                plot(b1(1),b1(2),'bo',b2(1),b2(2),'ro') % rondjess
-                plot(beam1(1,:),beam1(2,:),'b')     % beam1
-                plot(beam2(1,:),beam2(2,:),'r')     % beam2
+                % plot(b1(1),b1(2),'bo',b2(1),b2(2),'ro') % rondjess
+                % plot(beam1(1,:),beam1(2,:),'b')     % beam1
+                % plot(beam2(1,:),beam2(2,:),'r')     % beam2
                 
-                plot(0,0,'ko',b12(1),b12(2),'bo')   % rondjess
+                plot(0,0,'ko',b12(1),b12(2),'bo',b22(1),b22(2),'ro')   % rondjess
                 plot(beam11(1,:),beam11(2,:),'b')   % b11
                 plot(beam12(1,:),beam12(2,:),'b')   % b12
                 plot(beam21(1,:),beam21(2,:),'r')   % b21
@@ -247,6 +246,7 @@ function [] = PlotBeams(s,x,FigureNumber,Controller,Parameters,xdest)
             axis([0 Parameters.T -1 2])
             title '$s_1$ \& $s_2$'
             legend('s_1 [rad]','s_2 [rad]','x_1 [mm]','x_2 [mm]');    
+        drawnow;
         pause(Parameters.dt) 
     end
 
