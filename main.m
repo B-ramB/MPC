@@ -49,7 +49,7 @@ D= 0;
 T = 5;          % simulatie tijd
 dt = 0.1;       % time step
 t = 0:dt:T;     % time vector
-xdest = [0 0 pi/2 0 0 0 pi/2 0]'; %waardes waar het naartoe moet bewegen.
+xdest = [0 0 pi/3 0 0 0 pi/3 0]'; %waardes waar het naartoe moet bewegen.
 udest = [0 0]'; %uiteindelijke waardes van u
     % Also put it in the parameters struct
     Parameters.T = T;
@@ -145,9 +145,7 @@ x(:,1) = x0;
 
 % optimalisatie beginnen
 for n = 1:length(t)
-
 x0 = x(:,n);    
-    
     
 H = 0.5*(S'*QH*S + 2*R*eye(N*2));
 h = x0'*T'*QH*S - xref'*QH*S - uref'*R*eye(N*2);    
