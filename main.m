@@ -137,6 +137,11 @@ for j = 1:N
     eLarge(j*length(e)-(length(e)-1):j*length(e),1)= e; 
 end
 
+[P,~,~] = idare(A,B,Q,R,[],[]);
+
+QH(N*8-7:N*8,N*8-7:N*8) = P;
+
+
 uopt = zeros(2,N); 
 
 x = zeros(8,length(t)+1);
