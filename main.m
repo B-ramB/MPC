@@ -142,7 +142,6 @@ end
 
 QH(N*8-7:N*8,N*8-7:N*8) = P;
 
-
 uopt = zeros(2,N); 
 
 x = zeros(8,length(t)+1);
