@@ -142,7 +142,7 @@ for j = 1:N
     eLarge(j*length(e)-(length(e)-1):j*length(e),1)= e; 
 end
 
-[P,~,~] = idare(A,B,Q,R,[],[]);
+[P,K,~] = idare(A,B,Q,R,[],[]);
 
 QH(N*8-7:N*8,N*8-7:N*8) = P;
 
@@ -171,10 +171,17 @@ end
 Upper = Vertices <= M(1:end-1);
 Lower = Vertices >= -m(1:end-1);
 
-if sum(sum(Upper,2))+sum(sum(Lower,2)) < 2*size(Vertices,1)*size(Vertices,2) 
-    disp('xf not in x')
-elseif sum(sum(Upper,2))+sum(sum(Lower,2)) == 2*size(Vertices,1)*size(Vertices,2)
-    disp('xf in x!')
+u = K*Vertices;
+
+Check = sum([-100;-100] < u < [100; 100],2);
+
+
+
+
+if sum(sum(Upper,2))+sum(sum(Lower,2)) < 2*size(Vertices,1)*size(Vertices,2) || sum(Check) < 2*size(Vertices,2)
+    disp('xf not in x or u not in U')
+elseif sum(sum(Upper,2))+sum(sum(Lower,2)) == 2*size(Vertices,1)*size(Vertices,2) && sum(Check) == 2*size(Vertices,2)
+    disp('xf in x! and u in U!')
 end
 
 %% state-measurement MPC
