@@ -103,8 +103,8 @@ QH = zeros((N)*8); %Q zo opzetten dat je het kan vermenigvuldigen met de vector
 
 % Constraints
 F = [eye(8);
+     1 0 1 0 1 0 1 0;
     -eye(8);
-    1 0 1 0 1 0 1 0;
     -1 0 -1 0 -1 0 -1 0];
 
 m = [pi/10;      % x1        lower
