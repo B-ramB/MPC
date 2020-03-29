@@ -103,27 +103,31 @@ QH = zeros((N)*8); %Q zo opzetten dat je het kan vermenigvuldigen met de vector
 
 % Constraints
 F = [eye(8);
+     1 0 1 0 1 0 1 0;
     -eye(8);
-    1 0 1 0 1 0 1 0;
     -1 0 -1 0 -1 0 -1 0];
-e = [pi;     % x1        upper
-    pi;        % xdot1     upper
-    pi;       % s1        upper
-    pi;       % sdot1     upper
-    pi;      % x2        upper
-    pi;        % xdot2     upper
-    pi;       % s2        upper
-    pi;       % sdot2     upper
-    pi;      % x1        lower
-    pi;        % xdot1     lower
-    pi;       % s1        lower
-    pi;       % sdot1     lower
-    pi;      % x2        lower
-    pi;        % xdot2     lower
-    pi;       % s2        lower
-    pi;       % sdot2     lower
-    2*pi;       % x1 + s1 + x2 + s2 < 
+
+m = [pi/10;      % x1        lower
+    inf;        % xdot1     lower
+    pi/2;       % s1        lower
+    2*pi;       % sdot1     lower
+    pi/10;      % x2        lower
+    inf;        % xdot2     lower
+    pi/2;       % s2        lower
+    2*pi;         % sdot2     lower
+    2*pi];       % x1 + s1 + x2 + s2 < 
+
+M = [pi/10;     % x1        upper
+    inf;        % xdot1     upper
+    pi/2;       % s1        upper
+    2*pi;       % sdot1     upper
+    pi/10;      % x2        upper
+    inf;        % xdot2     upper
+    pi/2;       % s2        upper
+    2*pi;       % sdot2     upper   
     2*pi];      % -x1 - s1 - x2 - s2 < 
+
+e = [M; m];
 
 % uiteindelijke waardes van x en u in vectoren zetten.
 xref = zeros(8*N,1);
@@ -146,6 +150,32 @@ uopt = zeros(2,N);
 
 x = zeros(8,length(t)+1);
 x(:,1) = x0;
+
+
+
+
+%% Asymptotic stability
+T_s = 0.1;
+[S,D] = eig(P);         % diagonalise
+S = normc(S);           % normalise S
+D = sqrt(2*T_s*inv(D));        % get magnitudes of boundary xf
+
+Points = [S*D -S*D]; 
+
+
+C = combnk(1:16,8);
+Vertices = zeros(8,size(C,1));
+for i = 1:size(C,1)
+    Vertices(:,i) = sum(Points(:,C(i,:)),2);
+end
+Upper = Vertices <= M(1:end-1);
+Lower = Vertices >= -m(1:end-1);
+
+if sum(sum(Upper,2))+sum(sum(Lower,2)) < 2*size(Vertices,1)*size(Vertices,2) 
+    disp('xf not in x')
+elseif sum(sum(Upper,2))+sum(sum(Lower,2)) == 2*size(Vertices,1)*size(Vertices,2)
+    disp('xf in x!')
+end
 
 %% state-measurement MPC
 
