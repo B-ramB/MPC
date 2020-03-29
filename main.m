@@ -142,7 +142,7 @@ for j = 1:N
     eLarge(j*length(e)-(length(e)-1):j*length(e),1)= e; 
 end
 
-[P,K,~] = idare(A,B,Q,R,[],[]);
+[P,~,~] = idare(A,B,Q,R,[],[]);
 
 QH(N*8-7:N*8,N*8-7:N*8) = P;
 
@@ -208,7 +208,7 @@ end
 PlotBeams(s,x,2,'state-measurement MPC',Parameters,xdest)
 
 
-%% output measurement met disturbance
+%% output measurement met disturbance matrices en observer
 
 Bd = [1, 0
       0, 0
@@ -229,46 +229,85 @@ nnd = rank([(eye(8)-A), -Bd
 C2 = [C Cd];
 A2 = [A, Bd;
       zeros(2,8), eye(2)];
-B2 = [B; zeros(4,2)];
+B2 = [B; zeros(2,2)];
 
-K = place(A2',C2',[0.8, 0.81, 0.82, 0.83, 0.84, 0.8, 0.81, 0.82, 0.83, 0.84]');
+L = place(A2',C2',[0.8, 0.81, 0.82, 0.83, 0.84, 0.8, 0.81, 0.82, 0.83, 0.84]');
 
-
-%%
-
-%Opmaken van de T en S matrix van de vergelijking x = Tx0 + Su
-T2 = zeros(8*N,8);
-T2(1:8,1:8) = eye(8);
-S2 = zeros(8*N,2*N);
+% Opmaken van de T en S matrix van de vergelijking x = Tx0 + Su voor de
+% disturbance rejection
+T2 = zeros(10*N,10);
+T2(1:10,1:10) = eye(10);
+S2 = zeros(10*N,2*N);
 for i = 2:N
- T2((8*i)-7:8*i,:) = A2^(i-1);
+ T2((10*i)-9:10*i,:) = (A2-L'*C2)^(i-1);
  for k = 1:i-1
- S2((8*i)-7:8*i,2*k-1:2*k) = A2^(i-k-1)*B;
+ S2((10*i)-9:10*i,2*k-1:2*k) = (A2-L'*C2)^(i-k-1)*B2;
  end
 end
 
+%matrices voor the estimators and true values
+ytrue = zeros(2,length(t));
+ytrue(:,1) = ytrue(:,1) + (pi/180)*awgn(zeros(2,1),0);
+xhat = zeros(10,length(t)); %LET OP var xhat bevat zowel xhat als dhat
+xtrue = zeros(10,length(t)) ;
+xtrue(:,1) = xtrue(:,1) + (pi/180)*awgn(zeros(10,1),0);
 
+yr = C*xdest; %zelfde destination als vorige mpc controller
+
+% equality matrix
+equal = [eye(8)-A, -B
+         C, zeros(2,2)];
+% weighting matrices voor de OTS
+W1 = eye(8);
+W2 = eye(2);
+     
 %%
 for n = 1:length(t)
-x0 = x(:,n);    
     
-H = 0.5*(S'*QH*S + 2*R*eye(N*2));
-h = x0'*T'*QH*S - xref'*QH*S - uref'*R*eye(N*2);    
+ dhat = xhat(9:10,n);   %dhat aanroepen van xhat 
+       
+ cvx_begin quiet
+ 
+ variable ur(2,1)
+ variable xr(8,1)
+ 
+ %OTS
+ minimize(xr'*W1*xr + ur'*W2*ur)
+ subject to
+ equal*[xr; ur] == [Bd*dhat; (yr-Cd*dhat)];
+ 
+ cvx_end
+
+%xhat als 0 zetten
+x0 = xhat(:,n);    
+    
+H = 0.5*(S2'*QH*S2 + 2*R*eye(N*2));
+h = x0'*T2'*QH*S2 - xr'*QH*S2 - ur'*R*eye(N*2);    
     
 cvx_begin quiet
 
 variable u(2*N,1)
-
+%optimization zoals vorige
 minimize(u'*H*u + h*u)
 subject to
-FLarge*(T*x0+S*u) <= eLarge;
+FLarge*(T2*x0+S2*u) <= eLarge;
 
 cvx_end
 
-x(:,n+1) = A*x(:,n) + B*u(1:2);
+%xhat berekenene voor volgende stap
+xhat(:,n+1) = A2*xhat(:,n) + B2*u(1:2) + L*(y(:,n) - C2*xhat(:,n));
+% true values voor volgende stap berekenen.
+xtrue(:,n+1) = A2*xtrue(:,n) + B2*u(1:2) + (pi/180)*awgn(zeros(10,1),0);
+ytrue(:,n+1) = C*xtrue(:,n+1) + (pi/180)*awgn(zeros(2,1),0);
 
 uopt(:,n) = u(1:2);
  
+
+%opmerking:
+% -ytrue wordt niet meer aangeroepen klopt dat wel?
+% -moet d worden meegenomen in de optimal control problem?
+
+
 end
 
 [s,~,x] = lsim(MIMOdisc,uopt,t,x(:,1));
