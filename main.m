@@ -142,7 +142,7 @@ for j = 1:N
     eLarge(j*length(e)-(length(e)-1):j*length(e),1)= e; 
 end
 
-[P,L,~] = idare(A,B,Q,R,[],[]);
+[P,~,~] = idare(A,B,Q,R,[],[]);
 
 QH(N*8-7:N*8,N*8-7:N*8) = P;
 
@@ -210,8 +210,43 @@ PlotBeams(s,x,2,'state-measurement MPC',Parameters,xdest)
 
 %% output measurement met disturbance
 
+Bd = [eye(2) , zeros(2,2)
+     zeros(6,2), zeros(6,2)];
+Cd = [zeros(2,2), eye(2)];
 
 
+[~,L,~] = idare(A,B,Q,R,[],[]);
+
+%Checks
+OB = obsv(A,C);
+rank(OB')
+nnd = rank([(eye(8)-A), -Bd
+              C,         Cd]);
+C2 = [C C];
+A2 = [A, Bd;
+      zeros(4,8), eye(4)];
+B2 = [B; zeros(4,2)];
+
+
+[P2,L2,~] = idare(A2,B2,eye(length(A2)), eye(2),[],[]);   
+A2 = A-L'*C;
+
+
+%%
+
+%Opmaken van de T en S matrix van de vergelijking x = Tx0 + Su
+T2 = zeros(8*N,8);
+T2(1:8,1:8) = eye(8);
+S2 = zeros(8*N,2*N);
+for i = 2:N
+ T2((8*i)-7:8*i,:) = A2^(i-1);
+ for k = 1:i-1
+ S2((8*i)-7:8*i,2*k-1:2*k) = A2^(i-k-1)*B;
+ end
+end
+
+
+%%
 for n = 1:length(t)
 x0 = x(:,n);    
     
