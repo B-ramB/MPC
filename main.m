@@ -218,7 +218,8 @@ end
 
 %% output measurement met disturbance matrices en observer
 
-Q = diag([1 1 1 1 1 1 1 1]); %Waardes van de diagonaal van de Q (allemaal dezelfde)
+Q = diag([1 20 100 10 10 20 100 10]); %Waardes van de diagonaal van de Q (allemaal dezelfde)
+Q2 = diag([1 1 1 1 1 1 1 1 0 0]); %Waardes van de diagonaal van de Q (allemaal dezelfde)
 R = 0; %waarde van R
 
 Bd = [1, 0
@@ -250,18 +251,18 @@ T2 = zeros(10*N,10);
 T2(1:10,1:10) = eye(10);
 S2 = zeros(10*N,2*N);
 for i = 2:N
- T2((10*i)-9:10*i,:) = (A2-L'*C2)^(i-1);
+ T2((10*i)-9:10*i,:) = A2^(i-1);
  for k = 1:i-1
- S2((10*i)-9:10*i,2*k-1:2*k) = (A2-L'*C2)^(i-k-1)*B2;
+ S2((10*i)-9:10*i,2*k-1:2*k) = A2^(i-k-1)*B2;
  end
 end
 
 %matrices voor the estimators and true values
 ytrue = zeros(2,length(t));
-ytrue(:,1) = awgn(ytrue(:,1),40);
+%ytrue(:,1) = awgn(ytrue(:,1),40);
 xhat = zeros(10,length(t)); %LET OP var xhat bevat zowel xhat als dhat
 xtrue = zeros(10,length(t)) ;
-xtrue(:,1) = awgn(xtrue(:,1),40);
+%xtrue(:,1) = awgn(xtrue(:,1),40);
 y = zeros(2,length(t));
 
 yr = C*xdest; %zelfde destination als vorige mpc controller
@@ -275,16 +276,15 @@ W2 = eye(2);
 
 F2 = [F zeros(18,2)];
 F2Large = zeros(size(F,1)*N,10*N);
-
-Q2 = [Q , zeros(8,2); zeros(2,8), zeros(2,2)];
+Q2H = zeros(N*10,N*10);
 
 for j = 1:N
+    QH(j*8-7:j*8,j*8-7:j*8) = Q;
     Q2H(j*10-9:j*10,j*10-9:j*10) = Q2;
     F2Large(j*size(F2,1)-(size(F2,1)-1):j*size(F2,1),j*size(F2,2)-(size(F2,2)-1):j*size(F2,2)) = F2;
 end
 
-%[P2,~,~] = idare(A2,B2,Q2,R*eye(2),[],[]);
-Q2H(N*10-9:N*10,N*10-9:N*10) = [P , zeros(8,2); zeros(2,8), zeros(2,2)];
+    Q2H(N*10-9:N*10,N*10-9:N*10) = [P, zeros(8,2); zeros(2,8), zeros(2,2)];
 
 xrtot = zeros(8,length(t));
 urtot = zeros(2,length(t));
@@ -308,15 +308,15 @@ for n = 1:length(t)
  cvx_end
 
  for j = 1:N
-    x2ref(j*8-7:j*8,1) = xr;
+    x2ref(j*10-9:j*10,1) = [xr; 0; 0];
     u2ref(j*2-1:j*2,1) = ur;
  end
  
 %xhat als 0 zetten
-x0 = xhat(1:8,n);    
+x0 = xtrue(1:10,n);    
     
-H = 0.5*(S'*QH*S + 2*R*eye(N*2));
-h = x0'*T'*QH*S - x2ref'*QH*S - u2ref'*R*eye(N*2);    
+H = 0.5*(S2'*Q2H*S2 + 2*R*eye(N*2));
+h = x0'*T2'*Q2H*S2 - x2ref'*Q2H*S2 - u2ref'*R*eye(N*2);    
     
 cvx_begin quiet
 
@@ -324,7 +324,7 @@ variable u(2*N,1)
 %optimization zoals vorige
 minimize(u'*H*u + h*u)
 subject to
-FLarge*(T*x0+S*u) <= eLarge;
+F2Large*(T2*x0+S2*u) <= eLarge;
 
 cvx_end
 
