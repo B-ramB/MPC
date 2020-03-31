@@ -313,7 +313,7 @@ for n = 1:length(t)
  end
  
 %xhat als 0 zetten
-x0 = xtrue(1:10,n);    
+x0 = xhat(1:10,n);    
     
 H = 0.5*(S2'*Q2H*S2 + 2*R*eye(N*2));
 h = x0'*T2'*Q2H*S2 - x2ref'*Q2H*S2 - u2ref'*R*eye(N*2);    
