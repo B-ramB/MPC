@@ -3,6 +3,8 @@ clear all;
 close all;
 
 set(0,'defaultTextInterpreter','latex'); % Set latex as default text interpreter
+%% Settings
+Plots = true;
 
 % variables
 M1 = 2.75;      % kg
@@ -69,12 +71,14 @@ r = [xdest(3)*ones(1,(length(t)))
 MIMO=ss(A,B,C,D);               % MIMO plant
 KMIMO=ss(A-B*K,B,C,D);          % MIMO plant met state feedback controller
 KMIMO = KMIMO /dcgain(KMIMO);   % Controlled MIMO plant gedeeld door zijn dc gain. 
+disp('Simulating original controller')
 [s,~,x] = lsim(KMIMO,r,t,x0);         % simulatie op de step response
+if Plots == true
+    PlotBeams(s,x,1,'State Feedback',Parameters,xdest) % (s, l1, l2, figure number, Controller)
+end
 
-%%
-% PlotBeams(s,x,1,'State Feedback',Parameters,xdest) % (s, l1, l2, figure number, Controller)
-
-%% MPC preparations
+%% State Measurement MPC
+disp('Simulating state measurement MPC')
 MIMOdisc = c2d(MIMO,dt,'zoh'); %discretizeren van de plant
 
 N = 4; %horizon input
@@ -84,7 +88,7 @@ B = MIMOdisc.B;
 C = MIMOdisc.C;
 D = MIMOdisc.D;
 
-Q = diag([1 1 1 1 1 1 1 1]); %Waardes van de diagonaal van de Q (allemaal dezelfde)
+Q = diag([1 1 100 1 1 1 100 1]); %Waardes van de diagonaal van de Q (allemaal dezelfde)
 R = 0; %waarde van R
 
 x0 = [0 0 0 0 0 0 0 0]';
@@ -152,8 +156,35 @@ uopt = zeros(2,N);
 x = zeros(8,length(t)+1);
 x(:,1) = x0;
 
+% Main loop
 
+% optimalisatie beginnen
+for n = 1:length(t)
+x0 = x(:,n);    
+    
+H = 0.5*(S'*QH*S + 2*R*eye(N*2));
+h = x0'*T'*QH*S - xref'*QH*S - uref'*R*eye(N*2);    
+    
+cvx_begin quiet
 
+variable u(2*N,1)
+
+minimize(u'*H*u + h*u)
+subject to
+FLarge*(T*x0+S*u) <= eLarge;
+
+cvx_end
+
+x(:,n+1) = A*x(:,n) + B*u(1:2);
+y(:,n) = C*x(:,n);
+
+uopt(:,n) = u(1:2);
+ 
+end
+
+if Plots == true
+    PlotBeams(y',x',2,'state-measurement MPC',Parameters,xdest)
+end
 
 %% Asymptotic stability
 T_s = 0.1;
@@ -176,52 +207,21 @@ uas = K*Vertices;
 
 Check = sum([-100;-100] < uas < [100; 100],2);
 
-
-
-
 if sum(sum(Upper,2))+sum(sum(Lower,2)) < 2*size(Vertices,1)*size(Vertices,2) || sum(Check) < 2*size(Vertices,2)
     disp('xf not in x or u not in U')
 elseif sum(sum(Upper,2))+sum(sum(Lower,2)) == 2*size(Vertices,1)*size(Vertices,2) && sum(Check) == 2*size(Vertices,2)
     disp('xf in x! and u in U!')
 end
 
-%% state-measurement MPC
-
-% optimalisatie beginnen
-for n = 1:length(t)
-x0 = x(:,n);    
-    
-H = 0.5*(S'*QH*S + 2*R*eye(N*2));
-h = x0'*T'*QH*S - xref'*QH*S - uref'*R*eye(N*2);    
-    
-cvx_begin quiet
-
-variable u(2*N,1)
-
-minimize(u'*H*u + h*u)
-subject to
-FLarge*(T*x0+S*u) <= eLarge;
-
-cvx_end
-
-x(:,n+1) = A*x(:,n) + B*u(1:2);
-
-uopt(:,n) = u(1:2);
- 
-end
-
-[s,~,x] = lsim(MIMOdisc,uopt,t,x(:,1));
-
-
-% PlotBeams(s,x,2,'state-measurement MPC',Parameters,xdest)
-
 
 %% output measurement met disturbance matrices en observer
+disp('Simulating Output-measurement MPC')
+Q2 = blkdiag( Q, zeros(2)); %Waardes van de diagonaal van de Q 
 
-Q = diag([1 20 100 10 10 20 100 10]); %Waardes van de diagonaal van de Q (allemaal dezelfde)
-Q2 = diag([1 1 1 1 1 1 1 1 0 0]); %Waardes van de diagonaal van de Q (allemaal dezelfde)
-R = 0; %waarde van R
-
+% Disturbance
+NoiseLevel = 75;
+Dist = [0.001;            % constant disturbance on [s1; s2]
+        0.002];
 Bd = [1, 0
       0, 0
       0, 0
@@ -232,10 +232,9 @@ Bd = [1, 0
       0, 0];
 Cd = zeros(2,2);
 
-
 %Checks
 OB = obsv(A,C);
-rank(OB')
+rank(OB');
 nnd = rank([(eye(8)-A), -Bd
               C,         Cd]);
 C2 = [C Cd];
@@ -243,7 +242,7 @@ A2 = [A, Bd;
       zeros(2,8), eye(2)];
 B2 = [B; zeros(2,2)];
 
-L = place(A2',C2',[0.7, 0.75, 0.8, 0.85, 0.9, 0.7, 0.75, 0.8, 0.85, 0.9]');
+L = place(A2',C2',[0.7, 0.75, 0.8, 0.85, 0.9, 0.7, 0.75, 0.8, 0.85, 0.9]'); % Place observer poles
 
 % Opmaken van de T en S matrix van de vergelijking x = Tx0 + Su voor de
 % disturbance rejection
@@ -257,103 +256,97 @@ for i = 2:N
  end
 end
 
-%matrices voor the estimators and true values
+% matrices voor the estimators and true values
 ytrue = zeros(2,length(t));
-%ytrue(:,1) = awgn(ytrue(:,1),40);
-xhat = zeros(10,length(t)); %LET OP var xhat bevat zowel xhat als dhat
-xtrue = zeros(10,length(t)) ;
-%xtrue(:,1) = awgn(xtrue(:,1),40);
+xhat = zeros(10,length(t)); % LET OP var xhat bevat zowel xhat als dhat
+xtrue = zeros(10,length(t));
 y = zeros(2,length(t));
 
-yr = C*xdest; %zelfde destination als vorige mpc controller
+% Initial values
+xtrue(:,1) = [zeros(8,1);       % Initialise with the disturbance
+               Dist];
+yr = C*xdest;                   % zelfde destination als vorige mpc controller
 
-% equality matrix
-equal = [eye(8)-A, -B
+
+equal = [eye(8)-A, -B           % equality matrix
          C, zeros(2,2)];
-% weighting matrices voor de OTS
-W1 = eye(8);
+
+W1 = eye(8);                    % weighting matrices voor de OTS
 W2 = eye(2);
 
-F2 = [F zeros(18,2)];
+% Cost function and constraints
+F2 = [F zeros(18,2)];           
 F2Large = zeros(size(F,1)*N,10*N);
-Q2H = zeros(N*10,N*10);
 
-for j = 1:N
-    QH(j*8-7:j*8,j*8-7:j*8) = Q;
+Q2H = zeros(N*10,N*10);
+for j = 1:N     
     Q2H(j*10-9:j*10,j*10-9:j*10) = Q2;
     F2Large(j*size(F2,1)-(size(F2,1)-1):j*size(F2,1),j*size(F2,2)-(size(F2,2)-1):j*size(F2,2)) = F2;
 end
+Q2H(N*10-9:N*10,N*10-9:N*10) = [P, zeros(8,2); zeros(2,8), zeros(2,2)]; % add terminal cost matrix
 
-    Q2H(N*10-9:N*10,N*10-9:N*10) = [P, zeros(8,2); zeros(2,8), zeros(2,2)];
-
+% Initialisaties
 xrtot = zeros(8,length(t));
 urtot = zeros(2,length(t));
 x2ref = zeros(8*N,1);
 u2ref = zeros(2*N,1);
 
+% Main loop
 for n = 1:length(t)
     
- dhat = xhat(9:10,n);   %dhat aanroepen van xhat 
-       
- cvx_begin quiet
- 
- variable ur(2,1)
- variable xr(8,1)
- 
- %OTS
- minimize(xr'*W1*xr + ur'*W2*ur)
- subject to
- equal*[xr; ur] == [Bd*dhat; (yr-Cd*dhat)];
- 
- cvx_end
+% OTS
+dhat = xhat(9:10,n);   %dhat aanroepen van xhat 
+cvx_begin quiet
 
- for j = 1:N
+variable ur(2,1)
+variable xr(8,1)
+minimize(xr'*W1*xr + ur'*W2*ur)                % choose best target
+subject to
+equal*[xr; ur] == [Bd*dhat; (yr-Cd*dhat)];
+
+cvx_end
+
+for j = 1:N                                     % put in appropriate matrices
     x2ref(j*10-9:j*10,1) = [xr; 0; 0];
     u2ref(j*2-1:j*2,1) = ur;
- end
- 
-%xhat als 0 zetten
-x0 = xhat(1:10,n);    
-    
+end
+
+% MPC
+x0 = xhat(1:10,n);    %xhat als 0 zetten 
 H = 0.5*(S2'*Q2H*S2 + 2*R*eye(N*2));
 h = x0'*T2'*Q2H*S2 - x2ref'*Q2H*S2 - u2ref'*R*eye(N*2);    
     
 cvx_begin quiet
 
 variable u(2*N,1)
-%optimization zoals vorige
-minimize(u'*H*u + h*u)
+minimize(u'*H*u + h*u)              % optimization zoals vorige
 subject to
-F2Large*(T2*x0+S2*u) <= eLarge;
+F2Large*(T2*x0+S2*u) <= eLarge;     
 
 cvx_end
 
-%xhat berekenene voor volgende stap
-xhat(:,n+1) = A2*xhat(:,n) + B2*u(1:2,1) + L'*(y(:,n) - C2*xhat(:,n));
-% true values voor volgende stap berekenen.
-xtrue(:,n+1) = A2*xtrue(:,n) + B2*u(1:2,1);
-%xtrue(:,n+1) = awgn(xtrue(:,n+1),40);
-ytrue(:,n+1) = C2*xtrue(:,n+1);
-y(:,n+1) = ytrue(:,n+1);
 
+% Simulate
+xhat(:,n+1) = A2*xhat(:,n) + B2*u(1:2,1) + L'*(y(:,n) - C2*xhat(:,n));      % Observer
+xtrue(:,n+1) = A2*xtrue(:,n) + B2*u(1:2,1) ;                                 % True system
+ytrue(:,n+1) = C2*xtrue(:,n+1);
+y(:,n+1) = awgn(ytrue(:,n+1),NoiseLevel);                                           % Measurement noise
+
+% Save
 urtot(:,n) = ur;
 xrtot(:,n) = xr;
 uopt(:,n) = u(1:2);
 end
 
-yr - ytrue(:,end)
 
-[s,~,x] = lsim(MIMOdisc,uopt,t,xtrue(1:8,1));
-
-
-PlotBeams(s,x,2,'state-measurement MPC',Parameters,xdest)
-
+if Plots == true
+    PlotBeams(y',xtrue(1:8,:)',3,'Output-measurement MPC',Parameters,xdest)
+end
 
 
 
 
 %% funtions
-
 function [] = PlotBeams(s,x,FigureNumber,Controller,Parameters,xdest)
 % Plots the beams using the computed output angles. 
     % FigureNumber  : Which figure should it be plotted in
@@ -420,7 +413,7 @@ function [] = PlotBeams(s,x,FigureNumber,Controller,Parameters,xdest)
             title '$s_1$ \& $s_2$'
             legend('s_1 [rad]','s_2 [rad]','x_1 [mm]','x_2 [mm]');    
         drawnow;
-        pause(Parameters.dt) 
+        % pause(Parameters.dt) 
     end
 
 end
