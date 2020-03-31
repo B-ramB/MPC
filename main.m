@@ -108,23 +108,23 @@ F = [eye(8);
     -eye(8);
     -1 0 -1 0 -1 0 -1 0];
 
-m = [pi/10;      % x1        lower
+m = [pi;      % x1        lower
     1000;        % xdot1     lower
-    pi/2;       % s1        lower
+    pi;       % s1        lower
     2*pi;       % sdot1     lower
-    pi/10;      % x2        lower
+    pi;      % x2        lower
     1000;        % xdot2     lower
-    pi/2;       % s2        lower
+    pi;       % s2        lower
     2*pi;         % sdot2     lower
     2*pi];       % x1 + s1 + x2 + s2 < 
 
-M = [pi/10;     % x1        upper
+M = [pi;     % x1        upper
     1000;        % xdot1     upper
-    pi/2;       % s1        upper
+    pi;       % s1        upper
     2*pi;       % sdot1     upper
-    pi/10;      % x2        upper
+    pi;      % x2        upper
     1000;        % xdot2     upper
-    pi/2;       % s2        upper
+    pi;       % s2        upper
     2*pi;       % sdot2     upper   
     2*pi];      % -x1 - s1 - x2 - s2 < 
 
@@ -218,8 +218,8 @@ end
 
 %% output measurement met disturbance matrices en observer
 
-Q = diag([1 1 10 1 1 1 10 1]); %Waardes van de diagonaal van de Q (allemaal dezelfde)
-R = 1; %waarde van R
+Q = diag([1 1 1 1 1 1 1 1]); %Waardes van de diagonaal van de Q (allemaal dezelfde)
+R = 0; %waarde van R
 
 Bd = [1, 0
       0, 0
@@ -288,6 +288,9 @@ Q2H(N*10-9:N*10,N*10-9:N*10) = [P , zeros(8,2); zeros(2,8), zeros(2,2)];
 
 xrtot = zeros(8,length(t));
 urtot = zeros(2,length(t));
+x2ref = zeros(8*N,1);
+u2ref = zeros(2*N,1);
+
 for n = 1:length(t)
     
  dhat = xhat(9:10,n);   %dhat aanroepen van xhat 
@@ -305,23 +308,23 @@ for n = 1:length(t)
  cvx_end
 
  for j = 1:N
-    x2ref(j*10-9:j*10,1) = [xr; 0; 0];
+    x2ref(j*8-7:j*8,1) = xr;
     u2ref(j*2-1:j*2,1) = ur;
  end
  
 %xhat als 0 zetten
-x0 = xhat(:,n);    
+x0 = xhat(1:8,n);    
     
-H = 0.5*(S2'*Q2H*S2 + 2*R*eye(N*2));
-h = x0'*T2'*Q2H*S2 - x2ref'*Q2H*S2 - u2ref'*R*eye(N*2);    
+H = 0.5*(S'*QH*S + 2*R*eye(N*2));
+h = x0'*T'*QH*S - x2ref'*QH*S - u2ref'*R*eye(N*2);    
     
 cvx_begin quiet
 
 variable u(2*N,1)
 %optimization zoals vorige
 minimize(u'*H*u + h*u)
-%subject to
-%F2Large*(T2*x0+S2*u) <= eLarge;
+subject to
+FLarge*(T*x0+S*u) <= eLarge;
 
 cvx_end
 
