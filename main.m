@@ -77,7 +77,7 @@ KMIMO = KMIMO /dcgain(KMIMO);   % Controlled MIMO plant gedeeld door zijn dc gai
 %% MPC preparations
 MIMOdisc = c2d(MIMO,dt,'zoh'); %discretizeren van de plant
 
-N = 20; %horizon input
+N = 4; %horizon input
 
 A = MIMOdisc.A;
 B = MIMOdisc.B;
@@ -218,8 +218,8 @@ end
 
 %% output measurement met disturbance matrices en observer
 
-Q = diag([1 100 10 100 1 100 10 100]); %Waardes van de diagonaal van de Q (allemaal dezelfde)
-R = 10; %waarde van R
+Q = diag([1 1 10 1 1 1 10 1]); %Waardes van de diagonaal van de Q (allemaal dezelfde)
+R = 1; %waarde van R
 
 Bd = [1, 0
       0, 0
@@ -242,7 +242,7 @@ A2 = [A, Bd;
       zeros(2,8), eye(2)];
 B2 = [B; zeros(2,2)];
 
-L = place(A2',C2',[0.95, 0.96, 0.97, 0.98, 0.99, 0.95, 0.96, 0.97, 0.98, 0.99]');
+L = place(A2',C2',[0.7, 0.75, 0.8, 0.85, 0.9, 0.7, 0.75, 0.8, 0.85, 0.9]');
 
 % Opmaken van de T en S matrix van de vergelijking x = Tx0 + Su voor de
 % disturbance rejection
@@ -276,13 +276,17 @@ W2 = eye(2);
 F2 = [F zeros(18,2)];
 F2Large = zeros(size(F,1)*N,10*N);
 
+Q2 = [Q , zeros(8,2); zeros(2,8), zeros(2,2)];
+
 for j = 1:N
-    Q2H(j*10-9:j*10,j*10-9:j*10) = [Q , zeros(8,2); zeros(2,8), zeros(2,2)];
+    Q2H(j*10-9:j*10,j*10-9:j*10) = Q2;
     F2Large(j*size(F2,1)-(size(F2,1)-1):j*size(F2,1),j*size(F2,2)-(size(F2,2)-1):j*size(F2,2)) = F2;
 end
 
+%[P2,~,~] = idare(A2,B2,Q2,R*eye(2),[],[]);
+Q2H(N*10-9:N*10,N*10-9:N*10) = [P , zeros(8,2); zeros(2,8), zeros(2,2)];
 
-xrtot = zeros(10,length(t));
+xrtot = zeros(8,length(t));
 urtot = zeros(2,length(t));
 for n = 1:length(t)
     
