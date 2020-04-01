@@ -89,7 +89,7 @@ end
 disp('Simulating state measurement MPC')
 MIMOdisc = c2d(MIMO,dt,'zoh'); %discretizeren van de plant
 
-N = 10; %horizon input
+N = 13; %horizon input
 
 A = MIMOdisc.A;
 B = MIMOdisc.B;
@@ -172,40 +172,6 @@ x = zeros(8,length(t)+1);
 x(:,1) = x0;
 
 % Main loop
-%%
-% optimalisatie beginnen
-for n = 1:length(t)
-x0 = x(:,n);    
-    
-H = 0.5*(S'*QH*S + 2*R*eye(N*2));
-h = x0'*T'*QH*S - xref'*QH*S - uref'*R*eye(N*2);    
-    
-cvx_begin quiet
-
-variable u(2*N,1)
-
-minimize(u'*H*u + h*u)
-subject to
-FLarge*(T*x0+S*u) <= eLarge;
-FuLarge*u <= euLarge;
-cvx_end
-
-x(:,n+1) = A*x(:,n) + B*u(1:2);
-y(:,n) = C*x(:,n);
-
-uopt(:,n) = u(1:2);
- 
-end
-
-if Plots == true
-    PlotBeams(y',x',2,'state-measurement MPC',Parameters,xdest)
-end
-
-for n = 1:length(y)
-    if abs(y(1,n)-xdest(3))< 0.01*xdest(3) && abs(y(2,n)-xdest(7)) < 0.01*xdest(7)
-     disp(n)
-    end
-end
 
 %% Asymptotic stability
 T_s = 0.1;
@@ -235,6 +201,45 @@ elseif sum(sum(Upper,2))+sum(sum(Lower,2)) == 2*size(Vertices,1)*size(Vertices,2
 end
 
 
+%%
+% optimalisatie beginnen
+for n = 1:length(t)
+x0 = x(:,n);    
+    
+H = 0.5*(S'*QH*S + 2*R*eye(N*2));
+h = x0'*T'*QH*S - xref'*QH*S - uref'*R*eye(N*2);    
+    
+cvx_begin quiet
+
+variable u(2*N,1)
+
+minimize(u'*H*u + h*u)
+subject to
+FLarge*(T*x0+S*u) <= eLarge;
+FuLarge*u <= euLarge;
+0.5*((T(N*8-7:8*N,:)*x0 + S(N*8-7:N*8,:)*u) - xdest)'*P*((T(N*8-7:8*N,:)*x0 + S(N*8-7:N*8,:)*u) - xdest) <= T_s;
+
+cvx_end
+
+x(:,n+1) = A*x(:,n) + B*u(1:2);
+y(:,n) = C*x(:,n);
+
+uopt(:,n) = u(1:2);
+ 
+end
+
+if Plots == true
+    PlotBeams(y',x',2,'state-measurement MPC',Parameters,xdest)
+end
+
+for n = 1:length(y)
+    if abs(y(1,n)-xdest(3))< 0.01*xdest(3) && abs(y(2,n)-xdest(7)) < 0.01*xdest(7)
+     disp(n)
+    end
+end
+
+
+
 %% output measurement met disturbance matrices en observer
 disp('Simulating Output-measurement MPC')
 
@@ -242,15 +247,15 @@ T = 5;          % simulatie tijd
 dt = 0.1;       % time step
 t = 0:dt:T;
 
-Q = diag([20 50 800 10 20 50 800 10]);
+Q = diag([20 50 500 40 20 50 500 40]);
 
 Q2 = blkdiag( Q, zeros(2)); %Waardes van de diagonaal van de Q 
 
 
 % Disturbance
 NoiseLevel = 75;
-Dist = [0.001;            % constant disturbance on [s1; s2]
-        0.002];
+Dist = 0.1*[0.001;            % constant disturbance on [s1; s2]
+        0.001];
 Bd = [1, 0
       0, 0
       0, 0
@@ -312,7 +317,7 @@ for j = 1:N
     Q2H(j*10-9:j*10,j*10-9:j*10) = Q2;
     F2Large(j*size(F2,1)-(size(F2,1)-1):j*size(F2,1),j*size(F2,2)-(size(F2,2)-1):j*size(F2,2)) = F2;
 end
-Q2H(N*10-9:N*10,N*10-9:N*10) = 800*[P, zeros(8,2); zeros(2,8), zeros(2,2)]; % add terminal cost matrix
+Q2H(N*10-9:N*10,N*10-9:N*10) = [P, zeros(8,2); zeros(2,8), zeros(2,2)]; % add terminal cost matrix
 
 % Initialisaties
 xrtot = zeros(8,length(t));
@@ -352,6 +357,7 @@ minimize(u'*H*u + h*u)              % optimization zoals vorige
 subject to
 F2Large*(T2*x0+S2*u) <= eLarge;     
 FuLarge*u <= euLarge;
+0.5*((T2(N*10-9:10*N,:)*x0 + S2(N*10-9:N*10,:)*u) - [xr; 0; 0])'*[P, zeros(8,2); zeros(2,8), zeros(2,2)]*((T2(N*10-9:10*N,:)*x0 + S2(N*10-9:N*10,:)*u)- [xr; 0; 0]) <= T_s;
 cvx_end
 
 
@@ -372,6 +378,11 @@ if Plots == true
     PlotBeams(y',xtrue(1:8,:)',3,'Output-measurement MPC',Parameters,xdest)
 end
 
+for n = 1:length(y)
+    if abs(ytrue(1,n)-xdest(3))< 0.01*xdest(3) && abs(ytrue(2,n)-xdest(7)) < 0.01*xdest(7)
+     disp(n)
+    end
+end
 
 
 
