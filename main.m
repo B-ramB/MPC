@@ -4,7 +4,7 @@ close all;
 
 set(0,'defaultTextInterpreter','latex'); % Set latex as default text interpreter
 %% Settings
-Plots = true;
+Plots = false;
 
 % variables
 M1 = 2.75;      % kg
@@ -203,6 +203,11 @@ end
 
 %%
 % optimalisatie beginnen
+
+Vfplus = zeros(1,length(t));
+Vf = zeros(1,length(t));
+l = zeros(1,length(t));
+
 for n = 1:length(t)
 x0 = x(:,n);    
     
@@ -226,7 +231,24 @@ y(:,n) = C*x(:,n);
 
 uopt(:,n) = u(1:2);
  
+
+
+
+Vfplus(n) = (x(:,n+1)-xdest)'*P*(x(:,n+1)-xdest);
+Vf(n) = (x(:,n)-xdest)'*P*(x(:,n)-xdest);
+l(n) = 1/2*(x(:,n)-xdest)'*Q*(x(:,n) - xdest) + uopt(:,n)'*R*uopt(:,n);
 end
+
+
+% figure 
+%     hold on
+%     plot(t,Vfplus - Vf,'b')
+%     plot(t,-l,'r')
+%     xlabel 'time (s)'
+%     ylabel 'Cost'
+%     legend('$V_f(f(x,u) - V_f(x)$','-L','Interpreter','latex')
+
+
 
 if Plots == true
     PlotBeams(y',x',2,'state-measurement MPC',Parameters,xdest)
@@ -243,7 +265,7 @@ end
 %% output measurement met disturbance matrices en observer
 disp('Simulating Output-measurement MPC')
 
-T = 5;          % simulatie tijd
+T = 10;          % simulatie tijd
 dt = 0.1;       % time step
 t = 0:dt:T;
 
@@ -253,8 +275,8 @@ Q2 = blkdiag( Q, zeros(2)); %Waardes van de diagonaal van de Q
 
 
 % Disturbance
-NoiseLevel = 75;
-Dist = 0.1*[0.001;            % constant disturbance on [s1; s2]
+NoiseLevel = 100000;
+Dist = 1*[0.001;            % constant disturbance on [s1; s2]
         0.001];
 Bd = [1, 0
       0, 0
@@ -276,7 +298,7 @@ A2 = [A, Bd;
       zeros(2,8), eye(2)];
 B2 = [B; zeros(2,2)];
 
-L = place(A2',C2',[0.7, 0.75, 0.8, 0.85, 0.9, 0.7, 0.75, 0.8, 0.85, 0.9]'); % Place observer poles
+L = place(A2',C2',[0.9, 0.89, 0.88, 0.87, 0.86, 0.85, 0.84, 0.83, 0.82, 0.81]'); % Place observer poles
 
 % Opmaken van de T en S matrix van de vergelijking x = Tx0 + Su voor de
 % disturbance rejection
@@ -372,6 +394,15 @@ urtot(:,n) = ur;
 xrtot(:,n) = xr;
 uopt(:,n) = u(1:2);
 end
+
+
+err = vecnorm(xhat - xtrue);
+figure
+    hold on
+    plot(t,xhat(9:10,1:end-1)-xtrue(9:10,1:end-1))
+    legend('$\hat{d}_1 - dist_1$','$\hat{d_2} - dist_2$','Interpreter','latex');
+
+% '$\hat{x}_1$','$\hat{x}_2$','$\hat{x}_3$','$\hat{x}_4$','$\hat{x}_5$','$\hat{x}_6$','$\hat{x}_7$','$\hat{x}_8$',
 
 
 if Plots == true
