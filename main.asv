@@ -1,20 +1,10 @@
-clc; close all; clear all;
-%%%%%%%%%%%%%%%%%
-%{
-Code written by:
-    Bram Benist 
-    Pim de Bruin
-
-For the course 'Model Prediceive control' SC42125 at the TU Delft 
-06/04/2020
-%} 
-%%%%%%%%%%%%%%%%%%
-
-
+clc;
+clear all;
+close all;
 
 set(0,'defaultTextInterpreter','latex'); % Set latex as default text interpreter
 %% Settings
-Plots = true;           % true/false
+Plots = false;
 
 % variables
 M1 = 2.75;      % kg
@@ -277,10 +267,8 @@ end
 %% output measurement met disturbance matrices en observer
 
 T = 10;          % simulatie tijd
-Parameters.T = T;
 dt = 0.1;       % time step
 t = 0:dt:T;
-Parameters.t = t;
 
 Q = diag([20 50 500 40 20 50 500 40]);
 
@@ -288,7 +276,7 @@ Q2 = blkdiag( Q, zeros(2)); %Waardes van de diagonaal van de Q
 
 
 % Disturbance
-NoiseLevel = 80;
+NoiseLevel = 100000;
 Dist = 1*[0.001;            % constant disturbance on [s1; s2]
         0.001];
 Bd = [1, 0
@@ -311,7 +299,7 @@ A2 = [A, Bd;
       zeros(2,8), eye(2)];
 B2 = [B; zeros(2,2)];
 
-L = place(A2',C2',[0.7, 0.75, 0.8, 0.85, 0.9, 0.7, 0.75, 0.8, 0.85, 0.9]'); % Place observer poles
+L = place(A2',C2',[0.9, 0.89, 0.88, 0.87, 0.86, 0.85, 0.84, 0.83, 0.82, 0.81]'); % Place observer poles
 
 % Opmaken van de T en S matrix van de vergelijking x = Tx0 + Su voor de
 % disturbance rejection
@@ -360,9 +348,7 @@ urtot = zeros(2,length(t));
 x2ref = zeros(8*N,1);
 u2ref = zeros(2*N,1);
 
-disp(['Simulating Output-measurement MPC',newline...
-    'Noiselevel = ',num2str(NoiseLevel), newline...
-    'Disturbance = [',num2str(Dist'),']']);
+disp('Simulating Output-measurement MPC')
 
 % Main loop
 for n = 1:length(t)
