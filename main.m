@@ -2,11 +2,13 @@ clc; close all; clear all;
 %%%%%%%%%%%%%%%%%
 %{
 Code written by:
-    Bram Benist 
-    Pim de Bruin
+    Bram Benist  (4281926)
+    Pim de Bruin (4545702)
 
 For the course 'Model Prediceive control' SC42125 at the TU Delft 
 06/04/2020
+
+The code requirec the CVX optimisation software to run. 
 %} 
 %%%%%%%%%%%%%%%%%%
 
